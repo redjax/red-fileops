@@ -1,0 +1,29 @@
+[project]
+name = "red-fileops"
+version = "0.1.0"
+description = "Utilities for interacting with files."
+authors = [
+    {name = "redjax", email = "none@none.com"},
+]
+dependencies = [
+    "pendulum>=3.0.0",
+    "pydantic>=2.6.1",
+    "sqlalchemy>=2.0.27",
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "black>=24.2.0",
+    "nox>=2023.4.22",
+]
