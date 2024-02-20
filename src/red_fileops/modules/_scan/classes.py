@@ -23,6 +23,14 @@ class ScanResults(BaseModel):
     files: list[t.Union[str, os.DirEntry]] = Field(default=None)
     dirs: list[t.Union[str, os.DirEntry]] = Field(default=None)
 
+    @property
+    def count_dirs(self) -> int:
+        return len(self.dirs)
+
+    @property
+    def count_files(self) -> int:
+        return len(self.files)
+
     @field_validator("scan_target")
     def validate_scan_target(cls, v) -> str:
         if isinstance(v, Path):
@@ -104,11 +112,11 @@ class ScanTarget(BaseModel):
 
         return path_list
 
-    def to_json(self, output_file: str = "scan_results/results.json") -> bool:
+    def save_to_json(self, output_file: str = "scan_results/results.json") -> bool:
         """Output scan results to JSON file."""
 
         def prepare_results():
-            all_paths: ScanResults = self.get_dirs_files(as_str=True)
+            all_paths: ScanResults = self.scan(as_str=True)
 
             json_obj: dict = {
                 "target": f"{self.path}",
@@ -200,9 +208,7 @@ class ScanTarget(BaseModel):
         self.set_scan_timestamp()
 
         for entry in os.scandir(self.path):
-            if entry.is_dir():
-                pass
-            else:
+            if entry.is_file():
                 if as_str:
                     _files.append(entry.path)
                 else:
@@ -226,8 +232,6 @@ class ScanTarget(BaseModel):
 
         for entry in os.scandir(self.path):
             if entry.is_dir():
-                pass
-            else:
                 if as_str:
                     _dirs.append(entry.path)
                 else:
@@ -235,7 +239,7 @@ class ScanTarget(BaseModel):
 
         return _dirs
 
-    def get_dirs_files(self, as_str: bool = False) -> ScanResults:
+    def scan(self, as_str: bool = False) -> ScanResults:
         """Return a list of path strings found in self.path.
 
         Params:

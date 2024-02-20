@@ -1,1 +1,1 @@
-from modules._scan import ScanTarget, ScanResults
+from red_fileops.modules._scan import ScanTarget, ScanResults
