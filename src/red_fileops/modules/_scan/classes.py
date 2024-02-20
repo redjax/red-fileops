@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 import typing as t
 
+import uuid
+
 import pendulum
 from pydantic import (
     BaseModel,
@@ -14,6 +16,72 @@ from pydantic import (
     computed_field,
     field_validator,
 )
+
+
+class ScanEntity(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    path: t.Union[str, Path] = Field(default=None)
+
+    @computed_field
+    @property
+    def name(self) -> str:
+        return f"{Path(self.path).name}"
+
+    @computed_field
+    @property
+    def entity_type(self) -> str:
+        if Path(self.path).is_file():
+            return "file"
+        else:
+            return "dir"
+
+    @computed_field
+    @property
+    def parent_dir(self) -> str:
+        return f"{Path(self.path).parent}"
+
+    @computed_field
+    @property
+    def created_at(self) -> pendulum.DateTime:
+        _ctime: float = Path(self.path).stat().st_ctime
+        ts: pendulum.DateTime = pendulum.from_timestamp(_ctime)
+
+        return ts
+
+    @computed_field
+    @property
+    def modified_at(self) -> pendulum.DateTime:
+        _mtime: float = Path(self.path).stat().st_mtime
+
+        ts: pendulum.DateTime = pendulum.from_timestamp(_mtime)
+
+        return ts
+
+    @computed_field
+    @property
+    def size(self) -> int | None:
+        try:
+            p = Path(self.path)
+            if p.exists():
+                creation_time = pendulum.from_timestamp(p.stat().st_ctime)
+                modification_time = pendulum.from_timestamp(p.stat().st_mtime)
+                return creation_time, modification_time
+            else:
+                return None, None
+        except Exception as e:
+            print(f"Error: {e}")
+            return None, None
+
+    @field_validator("path")
+    def validate_path(cls, v) -> str:
+        if isinstance(v, Path):
+            return f"{v}"
+        elif isinstance(v, str):
+            return v
+        else:
+            raise TypeError(f"path must be of type str. Got type: ({type(v)})")
+
 
 class ScanResults(BaseModel):
     """Object to store results of a directory path scan."""
@@ -269,3 +337,8 @@ class ScanTarget(BaseModel):
             paths.append(Path(f))
 
         return paths
+
+
+class Scanner(BaseModel):
+    target: ScanTarget = Field(default=None)
+    scan_results: ScanResults = Field(default=None)

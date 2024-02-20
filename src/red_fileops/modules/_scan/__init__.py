@@ -1,3 +1,3 @@
 from __future__ import annotations
 
-from .classes import ScanResults, ScanTarget
+from .classes import ScanResults, ScanTarget, ScanEntity
