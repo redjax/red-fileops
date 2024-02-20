@@ -1,12 +1,14 @@
-import os
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 import json
+import os
 from pathlib import Path
 import typing as t
-from dataclasses import dataclass, field
+
+from red_fileops.scan import ScanResults, ScanTarget
+
 import pendulum
-
-from red_fileops.scan import ScanTarget, ScanResults
-
 
 if __name__ == "__main__":
     SCAN_DIR: ScanTarget = ScanTarget(path=Path("D:/Data/Downloads/"))

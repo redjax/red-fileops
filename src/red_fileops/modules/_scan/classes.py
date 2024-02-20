@@ -1,18 +1,19 @@
-import os
+from __future__ import annotations
+
 import json
+import os
 from pathlib import Path
 import typing as t
-import pendulum
 
+import pendulum
 from pydantic import (
     BaseModel,
-    Field,
-    field_validator,
-    ValidationError,
     ConfigDict,
+    Field,
+    ValidationError,
     computed_field,
+    field_validator,
 )
-
 
 class ScanResults(BaseModel):
     """Object to store results of a directory path scan."""
@@ -80,7 +81,7 @@ class ScanTarget(BaseModel):
             return len(paths)
 
     def set_scan_timestamp(self) -> None:
-        """This function is called by other class methods to set the value of self.scan_timestamp."""
+        """Called by other class methods to set the value of self.scan_timestamp."""
         if self.scan_timestamp is None:
             _scan_ts: pendulum.DateTime = pendulum.now()
 
@@ -98,6 +99,7 @@ class ScanTarget(BaseModel):
 
         Returns:
             list[os.DirEntry]: The input list, with refreshed metadata.
+
         """
         assert path_list is not None, ValueError("path_list cannot be None")
 
@@ -173,6 +175,7 @@ class ScanTarget(BaseModel):
         Returns:
             list[os.DirEntry]: If `as_str` = True`
             list[str]: (default) If `as_str = False`
+
         """
         paths: list[os.DirEntry] = []  # [i for i in os.scandir(SCAN_DIR.path)]
 
@@ -202,6 +205,7 @@ class ScanTarget(BaseModel):
         Returns:
             list[os.DirEntry]: If `as_str` = True`
             list[str]: (default) If `as_str = False`
+
         """
         _files: list[t.Union[os.DirEntry, str]] = []
 
@@ -225,6 +229,7 @@ class ScanTarget(BaseModel):
         Returns:
             list[os.DirEntry]: If `as_str` = True`
             list[str]: (default) If `as_str = False`
+
         """
         _dirs: list[t.Union[Path, os.DirEntry]] = []
 
@@ -248,8 +253,8 @@ class ScanTarget(BaseModel):
         Returns:
             list[os.DirEntry]: If `as_str` = True`
             list[str]: (default) If `as_str = False`
-        """
 
+        """
         files: list[t.Union[str, os.DirEntry]] = self.get_files(as_str=as_str)
         dirs: list[t.Union[str, os.DirEntry]] = self.get_dirs(as_str=as_str)
 
