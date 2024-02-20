@@ -1,12 +1,14 @@
-import os
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 import json
+import os
 from pathlib import Path
 import typing as t
-from dataclasses import dataclass, field
+
+from red_fileops.scan import ScanResults, ScanTarget
+
 import pendulum
-
-from scan import ScanTarget, ScanResults
-
 
 if __name__ == "__main__":
     SCAN_DIR: ScanTarget = ScanTarget(path=Path("D:/Data/Downloads/"))
@@ -30,6 +32,6 @@ if __name__ == "__main__":
     # SCAN_DIR.to_json(
     #     output_file=f"scan_results/{pendulum.now().format('YYYY-MM-DD_HH-mm-ss')}_results.json"
     # )
-    SCAN_DIR.to_json()
+    SCAN_DIR.save_to_json()
 
     SCAN_DIR.refresh_metadata(path_list=["./scan_results/results.json"])

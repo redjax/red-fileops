@@ -1,18 +1,19 @@
-import os
+from __future__ import annotations
+
 import json
+import os
 from pathlib import Path
 import typing as t
-import pendulum
 
+import pendulum
 from pydantic import (
     BaseModel,
-    Field,
-    field_validator,
-    ValidationError,
     ConfigDict,
+    Field,
+    ValidationError,
     computed_field,
+    field_validator,
 )
-
 
 class ScanResults(BaseModel):
     """Object to store results of a directory path scan."""
@@ -22,6 +23,14 @@ class ScanResults(BaseModel):
     scan_target: t.Union[str, Path] = Field(default=None)
     files: list[t.Union[str, os.DirEntry]] = Field(default=None)
     dirs: list[t.Union[str, os.DirEntry]] = Field(default=None)
+
+    @property
+    def count_dirs(self) -> int:
+        return len(self.dirs)
+
+    @property
+    def count_files(self) -> int:
+        return len(self.files)
 
     @field_validator("scan_target")
     def validate_scan_target(cls, v) -> str:
@@ -72,7 +81,7 @@ class ScanTarget(BaseModel):
             return len(paths)
 
     def set_scan_timestamp(self) -> None:
-        """This function is called by other class methods to set the value of self.scan_timestamp."""
+        """Called by other class methods to set the value of self.scan_timestamp."""
         if self.scan_timestamp is None:
             _scan_ts: pendulum.DateTime = pendulum.now()
 
@@ -90,6 +99,7 @@ class ScanTarget(BaseModel):
 
         Returns:
             list[os.DirEntry]: The input list, with refreshed metadata.
+
         """
         assert path_list is not None, ValueError("path_list cannot be None")
 
@@ -104,11 +114,11 @@ class ScanTarget(BaseModel):
 
         return path_list
 
-    def to_json(self, output_file: str = "scan_results/results.json") -> bool:
+    def save_to_json(self, output_file: str = "scan_results/results.json") -> bool:
         """Output scan results to JSON file."""
 
         def prepare_results():
-            all_paths: ScanResults = self.get_dirs_files(as_str=True)
+            all_paths: ScanResults = self.scan(as_str=True)
 
             json_obj: dict = {
                 "target": f"{self.path}",
@@ -165,6 +175,7 @@ class ScanTarget(BaseModel):
         Returns:
             list[os.DirEntry]: If `as_str` = True`
             list[str]: (default) If `as_str = False`
+
         """
         paths: list[os.DirEntry] = []  # [i for i in os.scandir(SCAN_DIR.path)]
 
@@ -194,15 +205,14 @@ class ScanTarget(BaseModel):
         Returns:
             list[os.DirEntry]: If `as_str` = True`
             list[str]: (default) If `as_str = False`
+
         """
         _files: list[t.Union[os.DirEntry, str]] = []
 
         self.set_scan_timestamp()
 
         for entry in os.scandir(self.path):
-            if entry.is_dir():
-                pass
-            else:
+            if entry.is_file():
                 if as_str:
                     _files.append(entry.path)
                 else:
@@ -219,6 +229,7 @@ class ScanTarget(BaseModel):
         Returns:
             list[os.DirEntry]: If `as_str` = True`
             list[str]: (default) If `as_str = False`
+
         """
         _dirs: list[t.Union[Path, os.DirEntry]] = []
 
@@ -226,8 +237,6 @@ class ScanTarget(BaseModel):
 
         for entry in os.scandir(self.path):
             if entry.is_dir():
-                pass
-            else:
                 if as_str:
                     _dirs.append(entry.path)
                 else:
@@ -235,7 +244,7 @@ class ScanTarget(BaseModel):
 
         return _dirs
 
-    def get_dirs_files(self, as_str: bool = False) -> ScanResults:
+    def scan(self, as_str: bool = False) -> ScanResults:
         """Return a list of path strings found in self.path.
 
         Params:
@@ -244,8 +253,8 @@ class ScanTarget(BaseModel):
         Returns:
             list[os.DirEntry]: If `as_str` = True`
             list[str]: (default) If `as_str = False`
-        """
 
+        """
         files: list[t.Union[str, os.DirEntry]] = self.get_files(as_str=as_str)
         dirs: list[t.Union[str, os.DirEntry]] = self.get_dirs(as_str=as_str)
 
