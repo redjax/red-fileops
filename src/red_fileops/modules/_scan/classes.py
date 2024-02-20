@@ -312,7 +312,7 @@ class ScanTarget(BaseModel):
 
         return _dirs
 
-    def scan(self, as_str: bool = False) -> ScanResults:
+    def get_files_dirs(self, as_str: bool = False) -> ScanResults:
         """Return a list of path strings found in self.path.
 
         Params:
@@ -338,7 +338,45 @@ class ScanTarget(BaseModel):
 
         return paths
 
+    def scan(
+        self,
+        as_str: bool = False,
+        save: bool = True,
+        output_file: t.Union[str, Path] | None = None,
+    ) -> ScanResults:
+        results: ScanResults = self.get_files_dirs(as_str=as_str)
+
+        if save:
+            if output_file is None:
+                output_file: str = "red_fileops-scan_results.json"
+            else:
+                if isinstance(output_file, Path):
+                    output_file: str = f"{output_file}"
+
+            self.save_to_json(output_file=output_file)
+
+        return results
+
 
 class Scanner(BaseModel):
+
+    path: t.Union[str, Path] = Field(default=None)
     target: ScanTarget = Field(default=None)
     scan_results: ScanResults = Field(default=None)
+
+    @field_validator("path")
+    def validate_path(cls, v) -> Path:
+        assert v is not None, ValueError("@ScanTarget: path cannot be None")
+        assert isinstance(v, str) or isinstance(v, Path), TypeError(
+            f"@ScanTarget: path must be of type str or Path. Got type: {type(v)}"
+        )
+        if isinstance(v, str):
+            v: Path = Path(v)
+
+        return v
+
+    def scan(self):
+        self.target: ScanTarget = ScanTarget(path=self.path)
+        self.scan_results: ScanResults = self.target.scan()
+
+        self.target.save_to_json()

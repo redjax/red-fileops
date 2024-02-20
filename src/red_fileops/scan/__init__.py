@@ -1,3 +1,3 @@
 from __future__ import annotations
 
-from red_fileops.modules._scan import ScanResults, ScanTarget, ScanEntity
+from red_fileops.modules._scan import ScanResults, ScanTarget, ScanEntity, Scanner
