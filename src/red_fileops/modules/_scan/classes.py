@@ -33,20 +33,26 @@ class ScanResults(BaseModel):
             raise TypeError(f"scan_target must be of type str. Got type: ({type(v)})")
 
 
-class ScanDir(BaseModel):
+class ScanTarget(BaseModel):
     """Manage scanning operations for a directory path.
 
     Params:
         path(typing.Union[str, Path]): A path to a directory to work with.
     """
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     path: t.Union[str, Path] = Field(default=None)
+    scan_timestamp: t.Union[str, pendulum.DateTime] | None = Field(
+        default=None,
+        description="Time of scan. This value is None until a scan is run.",
+    )
 
     @field_validator("path")
     def validate_path(cls, v) -> Path:
-        assert v is not None, ValueError("@ScanDir: path cannot be None")
+        assert v is not None, ValueError("@ScanTarget: path cannot be None")
         assert isinstance(v, str) or isinstance(v, Path), TypeError(
-            f"@ScanDir: path must be of type str or Path. Got type: {type(v)}"
+            f"@ScanTarget: path must be of type str or Path. Got type: {type(v)}"
         )
         if isinstance(v, str):
             v: Path = Path(v)
@@ -64,6 +70,15 @@ class ScanDir(BaseModel):
         else:
             paths = self.get_paths()
             return len(paths)
+
+    def set_scan_timestamp(self) -> None:
+        """This function is called by other class methods to set the value of self.scan_timestamp."""
+        if self.scan_timestamp is None:
+            _scan_ts: pendulum.DateTime = pendulum.now()
+
+            self.scan_timestamp = _scan_ts
+        else:
+            pass
 
     def refresh_metadata(
         self, path_list: list[t.Union[str, os.DirEntry]] = True
@@ -91,6 +106,30 @@ class ScanDir(BaseModel):
 
     def to_json(self, output_file: str = "scan_results/results.json") -> bool:
         """Output scan results to JSON file."""
+
+        def prepare_results():
+            all_paths: ScanResults = self.get_dirs_files(as_str=True)
+
+            json_obj: dict = {
+                "target": f"{self.path}",
+                "scan_timestamp": f"{self.scan_timestamp}",
+                "count_total": self.count_objs,
+                "count_dirs": len(all_paths.dirs),
+                "count_files": len(all_paths.files),
+                "scan_results": {"dirs": all_paths.dirs, "files": all_paths.files},
+            }
+
+            try:
+                return_obj: str = json.dumps(json_obj, indent=2)
+            except Exception as exc:
+                msg = Exception(
+                    f"Unhandled exception creating JSON string of scan results. Details: {exc}"
+                )
+
+                raise msg
+
+            return return_obj
+
         if not Path(output_file).parent.exists():
             try:
                 Path(output_file).parent.mkdir(parents=True, exist_ok=True)
@@ -102,10 +141,11 @@ class ScanDir(BaseModel):
 
                 return msg
 
+        results_json: str = prepare_results()
+
         try:
             with open(output_file, "w") as f:
-                data = json.dumps(self.get_dirs_files(as_str=True).__dict__)
-                f.write(data)
+                f.write(results_json)
 
             return True
         except Exception as exc:
@@ -127,6 +167,8 @@ class ScanDir(BaseModel):
             list[str]: (default) If `as_str = False`
         """
         paths: list[os.DirEntry] = []  # [i for i in os.scandir(SCAN_DIR.path)]
+
+        self.set_scan_timestamp()
 
         for p in os.scandir(self.path):
             paths.append(p)
@@ -155,6 +197,8 @@ class ScanDir(BaseModel):
         """
         _files: list[t.Union[os.DirEntry, str]] = []
 
+        self.set_scan_timestamp()
+
         for entry in os.scandir(self.path):
             if entry.is_dir():
                 pass
@@ -178,6 +222,8 @@ class ScanDir(BaseModel):
         """
         _dirs: list[t.Union[Path, os.DirEntry]] = []
 
+        self.set_scan_timestamp()
+
         for entry in os.scandir(self.path):
             if entry.is_dir():
                 pass
@@ -189,9 +235,7 @@ class ScanDir(BaseModel):
 
         return _dirs
 
-    def get_dirs_files(
-        self, as_str: bool = False
-    ) -> dict[str, list[t.Union[str, os.DirEntry]]]:
+    def get_dirs_files(self, as_str: bool = False) -> ScanResults:
         """Return a list of path strings found in self.path.
 
         Params:

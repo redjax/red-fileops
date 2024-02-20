@@ -5,11 +5,11 @@ import typing as t
 from dataclasses import dataclass, field
 import pendulum
 
-from _scan import ScanDir, ScanResults
+from scan import ScanTarget, ScanResults
 
 
 if __name__ == "__main__":
-    SCAN_DIR: ScanDir = ScanDir(path=Path("D:/Data/Downloads/"))
+    SCAN_DIR: ScanTarget = ScanTarget(path=Path("D:/Data/Downloads/"))
 
     if not SCAN_DIR.exists:
         raise FileNotFoundError(f"Could not find path: {SCAN_DIR.path}")
