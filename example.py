@@ -16,3 +16,7 @@ if __name__ == "__main__":
 
     SCANNER: Scanner = Scanner(path="D:/Data/Downloads")
     SCANNER.scan()
+
+    print(
+        f"Scanner counts: [{SCANNER.scan_results.count_dirs}] dir(s) / [{SCANNER.scan_results.count_files}] file(s)"
+    )

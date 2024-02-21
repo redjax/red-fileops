@@ -1,11 +1,10 @@
-from __future__ import annotations
-
 import json
 import os
 from pathlib import Path
 import typing as t
-
 import uuid
+
+from red_fileops.core import DEFAULT_SCAN_RESULTS_FILE
 
 import pendulum
 from pydantic import (
@@ -19,6 +18,8 @@ from pydantic import (
 
 
 class ScanEntity(BaseModel):
+    """Store data about a file or directory found in a scan."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     path: t.Union[str, Path] = Field(default=None)
@@ -182,58 +183,6 @@ class ScanTarget(BaseModel):
 
         return path_list
 
-    def save_to_json(self, output_file: str = "scan_results/results.json") -> bool:
-        """Output scan results to JSON file."""
-
-        def prepare_results():
-            all_paths: ScanResults = self.scan(as_str=True)
-
-            json_obj: dict = {
-                "target": f"{self.path}",
-                "scan_timestamp": f"{self.scan_timestamp}",
-                "count_total": self.count_objs,
-                "count_dirs": len(all_paths.dirs),
-                "count_files": len(all_paths.files),
-                "scan_results": {"dirs": all_paths.dirs, "files": all_paths.files},
-            }
-
-            try:
-                return_obj: str = json.dumps(json_obj, indent=2)
-            except Exception as exc:
-                msg = Exception(
-                    f"Unhandled exception creating JSON string of scan results. Details: {exc}"
-                )
-
-                raise msg
-
-            return return_obj
-
-        if not Path(output_file).parent.exists():
-            try:
-                Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-            except Exception as exc:
-                msg = Exception(
-                    f"Unhandled exception creating directory '{Path(output_file).parent}"
-                )
-                print(f"[ERROR] {msg}")
-
-                return msg
-
-        results_json: str = prepare_results()
-
-        try:
-            with open(output_file, "w") as f:
-                f.write(results_json)
-
-            return True
-        except Exception as exc:
-            msg = Exception(
-                f"Unhandled exception writing scan results to file '{output_file}'. Details: {exc}"
-            )
-            print(f"[ERROR] {msg}")
-
-            return False
-
     def get_paths(self, as_str: bool = False) -> t.Union[list[os.DirEntry, str]]:
         """Return a list of path strings found in self.path.
 
@@ -312,7 +261,16 @@ class ScanTarget(BaseModel):
 
         return _dirs
 
-    def get_files_dirs(self, as_str: bool = False) -> ScanResults:
+    def get_pathlib_paths(self) -> list[Path]:
+        """Return list of files as `pathlib.Path` objects."""
+        paths: list[Path] = []
+
+        for f in self.get_paths(as_str=True):
+            paths.append(Path(f))
+
+        return paths
+
+    def run_scan(self, as_str: bool = False) -> ScanResults:
         """Return a list of path strings found in self.path.
 
         Params:
@@ -328,34 +286,6 @@ class ScanTarget(BaseModel):
 
         # return {"dirs": dirs, "files": files}
         return ScanResults(scan_target=self.path, files=files, dirs=dirs)
-
-    def get_pathlib_paths(self) -> list[Path]:
-        """Return list of files as `pathlib.Path` objects."""
-        paths: list[Path] = []
-
-        for f in self.get_paths(as_str=True):
-            paths.append(Path(f))
-
-        return paths
-
-    def scan(
-        self,
-        as_str: bool = False,
-        save: bool = True,
-        output_file: t.Union[str, Path] | None = None,
-    ) -> ScanResults:
-        results: ScanResults = self.get_files_dirs(as_str=as_str)
-
-        if save:
-            if output_file is None:
-                output_file: str = "red_fileops-scan_results.json"
-            else:
-                if isinstance(output_file, Path):
-                    output_file: str = f"{output_file}"
-
-            self.save_to_json(output_file=output_file)
-
-        return results
 
 
 class Scanner(BaseModel):
@@ -375,8 +305,60 @@ class Scanner(BaseModel):
 
         return v
 
-    def scan(self):
+    def scan(
+        self,
+        as_str: bool = False,
+        save_results: bool = False,
+        output_file: t.Union[str, Path] | None = None,
+    ) -> ScanResults:
         self.target: ScanTarget = ScanTarget(path=self.path)
-        self.scan_results: ScanResults = self.target.scan()
+        self.scan_results: ScanResults = self.target.run_scan(as_str=as_str)
 
-        self.target.save_to_json()
+        if save_results:
+            assert output_file is not None, ValueError("output_file cannot be None")
+            if isinstance(output_file, str):
+                output_file: Path = Path(output_file)
+
+            try:
+                self.save_to_json()
+            except Exception as exc:
+                msg = Exception(
+                    f"Unhandled exception saving scan results to file '{output_file}'. Details: {exc}"
+                )
+
+                print(f"[ERROR] {msg}")
+
+        return self.scan_results
+
+    def save_to_json(
+        self, output_file: t.Union[str, Path] | None = DEFAULT_SCAN_RESULTS_FILE
+    ):
+        """Save results object to JSON file."""
+        assert output_file is not None, ValueError("output_file cannot be None")
+        assert isinstance(output_file, str) or isinstance(output_file, Path), TypeError(
+            f"output_file must be of type str or Path. Got type: {type(output_file)}"
+        )
+
+        if isinstance(output_file, str):
+            output_file: Path = Path(output_file)
+
+        try:
+            data: str = json.dumps(self.scan_results.model_dump(), indent=2)
+        except Exception as exc:
+            msg = Exception(
+                f"Unhandled exception dumping scan results to JSON. Details: {exc}"
+            )
+            print(f"[ERROR] {msg}")
+
+            raise msg
+
+        try:
+            with open(output_file, "w") as f:
+                f.write(data)
+        except Exception as exc:
+            msg = Exception(
+                f"Unhandled exception writing scan results to file '{output_file}'. Details: {exc}"
+            )
+            print(f"[ERROR] {msg}")
+
+            raise msg
