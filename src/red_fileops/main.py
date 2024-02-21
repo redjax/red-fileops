@@ -7,6 +7,7 @@ from pathlib import Path
 import typing as t
 
 from red_fileops.scan import ScanResults, ScanTarget
+from red_fileops.analyze import analyze_scan_results
 
 import pendulum
 

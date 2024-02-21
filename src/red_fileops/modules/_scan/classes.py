@@ -255,8 +255,6 @@ class ScanTarget(BaseModel):
                 else:
                     return_dirs.append(entry)
 
-        # self.dirs: list[ScanEntity] = _dirs
-
         return _dirs
 
     def run_scan(self, as_str: bool = False) -> ScanResults:
