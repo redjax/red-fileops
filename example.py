@@ -1,8 +1,11 @@
 from red_fileops.scan import ScanTarget, ScanResults, ScanEntity, Scanner
+from red_fileops.sysinfo import PLATFORM
 
 EX_SCAN_PATH: str = "/home/jack/mambaforge"
 
 if __name__ == "__main__":
+    print(f"Platform: {PLATFORM.platform_aliased}")
+    
     SCANNER: Scanner = Scanner(scan_path=EX_SCAN_PATH)
     SCANNER.scan()
 

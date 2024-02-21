@@ -29,7 +29,7 @@ from .schemas import (
 )
 from .utils import print_platform
 
-from red_sysinfo.domain.enums.platform import (
+from red_fileops.modules._sysinfo.domain.enums.platform import (
     EnumLinux,
     EnumMac,
     EnumPlatform,
