@@ -9,6 +9,7 @@ import uuid
 
 from red_fileops.core import DEFAULT_SCAN_RESULTS_FILE
 from red_fileops.core.utils import converters
+from red_fileops.sysinfo import PLATFORM, PlatformInfo
 
 import pendulum
 from pydantic import (
@@ -97,7 +98,7 @@ class ScanEntity(BaseModel):
             )
 
             return human_readable_str
-        except:
+        except Exception:
             return None
 
     @field_validator("path")
@@ -373,6 +374,16 @@ class Scanner(BaseModel):
         output_file: t.Union[str, Path] | None = None,
     ) -> ScanResults:
         self.target: ScanTarget = ScanTarget(path=self.scan_path)
+        
+        if PLATFORM.is_linux():
+            print(f"Linux detected")
+        elif PLATFORM.is_mac():
+            print(f"Mac detected")
+        elif PLATFORM.is_win():
+            print(f"Windows detected")
+        else:
+            msg = Exception(f"Unable to detected OS type")
+            print(f"[WARNING] {msg}")
 
         if not self.target.exists:
             msg = FileNotFoundError(f"Unable to find scan path: {self.target.path}'")
