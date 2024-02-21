@@ -200,3 +200,5 @@ site/
 
 scan_results
 test.py
+*_scan.json
+scan_results.json

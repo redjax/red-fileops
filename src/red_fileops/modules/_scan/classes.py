@@ -5,8 +5,10 @@ import typing as t
 import uuid
 
 from red_fileops.core import DEFAULT_SCAN_RESULTS_FILE
+from red_fileops.core.utils import converters
 
 import pendulum
+from datetime import datetime
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -14,6 +16,7 @@ from pydantic import (
     ValidationError,
     computed_field,
     field_validator,
+    model_validator,
 )
 
 
@@ -27,7 +30,12 @@ class ScanEntity(BaseModel):
     @computed_field
     @property
     def name(self) -> str:
-        return f"{Path(self.path).name}"
+        if isinstance(self.path, Path):
+            return self.path.name
+        elif isinstance(self.path, str):
+            return f"{Path(self.path).name}"
+        else:
+            return None
 
     @computed_field
     @property
@@ -44,35 +52,52 @@ class ScanEntity(BaseModel):
 
     @computed_field
     @property
-    def created_at(self) -> pendulum.DateTime:
+    def created_at(self) -> str:
         _ctime: float = Path(self.path).stat().st_ctime
-        ts: pendulum.DateTime = pendulum.from_timestamp(_ctime)
+        ts: pendulum.DateTime = pendulum.from_timestamp(_ctime).to_iso8601_string()
 
         return ts
 
     @computed_field
     @property
-    def modified_at(self) -> pendulum.DateTime:
+    def modified_at(self) -> str:
         _mtime: float = Path(self.path).stat().st_mtime
 
-        ts: pendulum.DateTime = pendulum.from_timestamp(_mtime)
+        ts: pendulum.DateTime = pendulum.from_timestamp(_mtime).to_iso8601_string()
 
         return ts
 
     @computed_field
     @property
-    def size(self) -> int | None:
+    def size_in_bytes(self) -> int | None:
+        if Path(self.path).is_file():
+            # If it's a file, directly get its size
+            file_size_bytes = Path(self.path).stat().st_size
+            return file_size_bytes
+        elif Path(self.path).is_dir():
+            # If it's a directory, recursively calculate total size
+            total_size_bytes = 0
+            for child in Path(self.path).iterdir():
+                if child.is_file() and not child.is_symlink():
+                    total_size_bytes += child.stat().st_size
+            return total_size_bytes
+
+        # try:
+        #     return Path(self.path).stat().st_size
+        # except Exception as exc:
+        #     return None
+
+    @computed_field
+    @property
+    def size_str(self) -> str | None:
         try:
-            p = Path(self.path)
-            if p.exists():
-                creation_time = pendulum.from_timestamp(p.stat().st_ctime)
-                modification_time = pendulum.from_timestamp(p.stat().st_mtime)
-                return creation_time, modification_time
-            else:
-                return None, None
-        except Exception as e:
-            print(f"Error: {e}")
-            return None, None
+            human_readable_str: str = converters.bytes_to_human_readable(
+                size_in_bytes=self.size_in_bytes
+            )
+
+            return human_readable_str
+        except:
+            return None
 
     @field_validator("path")
     def validate_path(cls, v) -> str:
@@ -89,17 +114,49 @@ class ScanResults(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    scan_timestamp: str | None = Field(
+        default=None,
+        description="Time of scan. This value is None until a scan is run.",
+    )
     scan_target: t.Union[str, Path] = Field(default=None)
-    files: list[t.Union[str, os.DirEntry]] = Field(default=None)
-    dirs: list[t.Union[str, os.DirEntry]] = Field(default=None)
 
-    @property
-    def count_dirs(self) -> int:
-        return len(self.dirs)
+    files: list[ScanEntity] = Field(default=None)
+    dirs: list[ScanEntity] = Field(default=None)
 
+    @computed_field
     @property
-    def count_files(self) -> int:
-        return len(self.files)
+    def all(self) -> list[ScanEntity]:
+        if self.files is None:
+            self.files = []
+        if self.dirs is None:
+            self.dirs = []
+
+        merged_list = []
+
+        for f in self.dirs:
+            if f not in merged_list:
+                merged_list.append(f)
+        for f in self.files:
+            if f not in merged_list:
+                merged_list.append(f)
+
+        return merged_list
+
+    @computed_field
+    @property
+    def count_dirs(self) -> int | None:
+        if self.dirs is None:
+            return 0
+        else:
+            return len(self.dirs)
+
+    @computed_field
+    @property
+    def count_files(self) -> int | None:
+        if self.files is None:
+            return 0
+        else:
+            return len(self.files)
 
     @field_validator("scan_target")
     def validate_scan_target(cls, v) -> str:
@@ -121,10 +178,6 @@ class ScanTarget(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     path: t.Union[str, Path] = Field(default=None)
-    scan_timestamp: t.Union[str, pendulum.DateTime] | None = Field(
-        default=None,
-        description="Time of scan. This value is None until a scan is run.",
-    )
 
     @field_validator("path")
     def validate_path(cls, v) -> Path:
@@ -141,79 +194,9 @@ class ScanTarget(BaseModel):
     def exists(self) -> bool:
         return self.path.exists()
 
-    @property
-    def count_objs(self) -> int:
-        if not self.exists:
-            return None
-        else:
-            paths = self.get_paths()
-            return len(paths)
-
-    def set_scan_timestamp(self) -> None:
-        """Called by other class methods to set the value of self.scan_timestamp."""
-        if self.scan_timestamp is None:
-            _scan_ts: pendulum.DateTime = pendulum.now()
-
-            self.scan_timestamp = _scan_ts
-        else:
-            pass
-
-    def refresh_metadata(
-        self, path_list: list[t.Union[str, os.DirEntry]] = True
-    ) -> list[os.DirEntry]:
-        """Iterate of list of `os.DirEntry` objects, refreshing their metadata with `os.stat()`.
-
-        Params:
-            path_list (list[os.DirEntry]): List of `os.DirEntry` objects to iterate and refresh metadata.
-
-        Returns:
-            list[os.DirEntry]: The input list, with refreshed metadata.
-
-        """
-        assert path_list is not None, ValueError("path_list cannot be None")
-
-        for p in path_list:
-            try:
-                os.stat(p)
-            except Exception as exc:
-                msg = Exception(
-                    f"Unhandled exception refreshing file metadata with os.stat(). Details: {exc}"
-                )
-                print(f"[ERROR] {msg}")
-
-        return path_list
-
-    def get_paths(self, as_str: bool = False) -> t.Union[list[os.DirEntry, str]]:
-        """Return a list of path strings found in self.path.
-
-        Params:
-            as_str (bool): Control return list type.
-
-        Returns:
-            list[os.DirEntry]: If `as_str` = True`
-            list[str]: (default) If `as_str = False`
-
-        """
-        paths: list[os.DirEntry] = []  # [i for i in os.scandir(SCAN_DIR.path)]
-
-        self.set_scan_timestamp()
-
-        for p in os.scandir(self.path):
-            paths.append(p)
-
-        if as_str:
-            _paths: list[str] = []
-
-            for p in paths:
-                _path: str = p.path
-
-                _paths.append(_path)
-
-            return _paths
-        else:
-            return paths
-
-    def get_files(self, as_str: bool = False) -> t.Union[list[str, os.DirEntry]]:
+    def get_files(
+        self, as_str: bool = False
+    ) -> list[ScanResults]:  # -> t.Union[list[str, os.DirEntry]]:
         """Return a list of file path strings found in self.path. Excludes directories.
 
         Params:
@@ -224,20 +207,25 @@ class ScanTarget(BaseModel):
             list[str]: (default) If `as_str = False`
 
         """
-        _files: list[t.Union[os.DirEntry, str]] = []
-
-        self.set_scan_timestamp()
+        return_files: list[t.Union[os.DirEntry, str]] = []
+        _files: list[ScanEntity] = []
 
         for entry in os.scandir(self.path):
             if entry.is_file():
+                _files.append(ScanEntity(path=entry.path))
+
                 if as_str:
-                    _files.append(entry.path)
+                    return_files.append(entry.path)
                 else:
-                    _files.append(entry)
+                    return_files.append(entry)
+
+        # self.files: list[ScanEntity] = _files
 
         return _files
 
-    def get_dirs(self, as_str: bool = False) -> t.Union[list[str, os.DirEntry]]:
+    def get_dirs(
+        self, as_str: bool = False
+    ) -> list[ScanEntity]:  # -> t.Union[list[str, os.DirEntry]]:
         """Return a list of directory path strings found in self.path. Excludes directories.
 
         Params:
@@ -248,27 +236,20 @@ class ScanTarget(BaseModel):
             list[str]: (default) If `as_str = False`
 
         """
-        _dirs: list[t.Union[Path, os.DirEntry]] = []
-
-        self.set_scan_timestamp()
+        return_dirs: list[t.Union[str, os.DirEntry]] = []
+        _dirs: list[ScanEntity] = []
 
         for entry in os.scandir(self.path):
             if entry.is_dir():
+                _dirs.append(ScanEntity(path=entry.path))
                 if as_str:
-                    _dirs.append(entry.path)
+                    return_dirs.append(entry.path)
                 else:
-                    _dirs.append(entry)
+                    return_dirs.append(entry)
+
+        # self.dirs: list[ScanEntity] = _dirs
 
         return _dirs
-
-    def get_pathlib_paths(self) -> list[Path]:
-        """Return list of files as `pathlib.Path` objects."""
-        paths: list[Path] = []
-
-        for f in self.get_paths(as_str=True):
-            paths.append(Path(f))
-
-        return paths
 
     def run_scan(self, as_str: bool = False) -> ScanResults:
         """Return a list of path strings found in self.path.
@@ -284,15 +265,26 @@ class ScanTarget(BaseModel):
         files: list[t.Union[str, os.DirEntry]] = self.get_files(as_str=as_str)
         dirs: list[t.Union[str, os.DirEntry]] = self.get_dirs(as_str=as_str)
 
-        # return {"dirs": dirs, "files": files}
-        return ScanResults(scan_target=self.path, files=files, dirs=dirs)
+        _results: ScanResults = ScanResults(
+            scan_target=self.path, files=files, dirs=dirs
+        )
+
+        return _results
 
 
 class Scanner(BaseModel):
 
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+    )
+
     path: t.Union[str, Path] = Field(default=None)
     target: ScanTarget = Field(default=None)
     scan_results: ScanResults = Field(default=None)
+    scan_timestamp: str | None = Field(
+        default=None,
+        description="Time of scan. This value is None until a scan is run.",
+    )
 
     @field_validator("path")
     def validate_path(cls, v) -> Path:
@@ -305,6 +297,45 @@ class Scanner(BaseModel):
 
         return v
 
+    @field_validator("scan_timestamp")
+    def validate_timestamp(csl, v) -> str | None:
+        if v is None:
+            return None
+        elif isinstance(v, pendulum.DateTime):
+            return v.to_iso8601_string()
+        elif isinstance(v, str):
+            return v
+        else:
+            return None
+
+    @property
+    def count_objs(self) -> int:
+        if not self.path.exists():
+            return None
+        else:
+            if self.scan_results.files is None:
+                files: int = 0
+            else:
+                files: int = len(self.scan_results.files)
+
+            if self.scan_results.dirs is None:
+                dirs: int = 0
+            else:
+                dirs: int = len(self.scan_results.dirs)
+
+            total: int = files + dirs
+
+            return total
+
+    def set_scan_timestamp(self) -> None:
+        """Called by other class methods to set the value of self.scan_timestamp."""
+        if self.scan_timestamp is None:
+            _scan_ts: pendulum.DateTime = pendulum.now().to_iso8601_string()
+
+            self.scan_timestamp = _scan_ts
+        else:
+            pass
+
     def scan(
         self,
         as_str: bool = False,
@@ -312,12 +343,23 @@ class Scanner(BaseModel):
         output_file: t.Union[str, Path] | None = None,
     ) -> ScanResults:
         self.target: ScanTarget = ScanTarget(path=self.path)
+
+        self.set_scan_timestamp()
         self.scan_results: ScanResults = self.target.run_scan(as_str=as_str)
+        self.scan_results.scan_timestamp = self.scan_timestamp
 
         if save_results:
             assert output_file is not None, ValueError("output_file cannot be None")
             if isinstance(output_file, str):
                 output_file: Path = Path(output_file)
+
+            if not output_file.parent.exists():
+                try:
+                    output_file.parent.mkdir(parents=True, exist_ok=True)
+                except Exception as exc:
+                    raise Exception(
+                        f"Unhandled exception creating directory '{output_file.parent}'. Details: {exc}"
+                    )
 
             try:
                 self.save_to_json()
@@ -362,3 +404,28 @@ class Scanner(BaseModel):
             print(f"[ERROR] {msg}")
 
             raise msg
+
+    # def refresh_metadata(
+    #     self, path_list: list[t.Union[str, os.DirEntry]] = True
+    # ) -> list[os.DirEntry]:
+    #     """Iterate of list of `os.DirEntry` objects, refreshing their metadata with `os.stat()`.
+
+    #     Params:
+    #         path_list (list[os.DirEntry]): List of `os.DirEntry` objects to iterate and refresh metadata.
+
+    #     Returns:
+    #         list[os.DirEntry]: The input list, with refreshed metadata.
+
+    #     """
+    #     assert path_list is not None, ValueError("path_list cannot be None")
+
+    #     for p in path_list:
+    #         try:
+    #             os.stat(p)
+    #         except Exception as exc:
+    #             msg = Exception(
+    #                 f"Unhandled exception refreshing file metadata with os.stat(). Details: {exc}"
+    #             )
+    #             print(f"[ERROR] {msg}")
+
+    #     return path_list

@@ -20,3 +20,8 @@ if __name__ == "__main__":
     print(
         f"Scanner counts: [{SCANNER.scan_results.count_dirs}] dir(s) / [{SCANNER.scan_results.count_files}] file(s)"
     )
+
+    _sample = SCANNER.scan_results.files[0]
+    print(f"SAMPLE ({type(_sample)}): {_sample}")
+
+    SCANNER.save_to_json()
