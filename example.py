@@ -14,7 +14,7 @@ if __name__ == "__main__":
     #     print(f"Scan result entity: {entity}")
     #     print(f"Created at: {entity.created_at}")
 
-    SCANNER: Scanner = Scanner(path="/home/jack/Downloads")
+    SCANNER: Scanner = Scanner(path="/home/jack/mambaforge")
     SCANNER.scan()
 
     if not SCANNER.scan_results:

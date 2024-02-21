@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from red_fileops.modules._sysinfo.domain.mixins import DictMixin
 from red_fileops.modules._sysinfo.domain.enums.sysinfo import EnumCPUCores
+from red_fileops.modules._sysinfo.domain.mixins import DictMixin
 
 import psutil
-
 
 def get_cpu_info() -> "CPUInfo":
     """Get CPU core info."""

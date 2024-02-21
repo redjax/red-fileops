@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 def bytes_to_human_readable(size_in_bytes: int = None) -> str:
     """Return a human-readable string from an input integer size in bytes.
 
     Examples:
-
         - input: `1025`
         - output: "`1 GB`"
+    
     """
     if size_in_bytes is None:
         return "0 bytes"

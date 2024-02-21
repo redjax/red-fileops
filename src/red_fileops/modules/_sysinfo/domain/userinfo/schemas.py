@@ -1,11 +1,13 @@
-from typing import Union
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from pathlib import Path
 import os
+from pathlib import Path
+from typing import Union
+
+from .methods import get_groups, get_user_id
 
 from red_sysinfo.domain.mixins import DictMixin
-from .methods import get_user_id, get_groups
-
 
 @dataclass
 class UserInfo(DictMixin):

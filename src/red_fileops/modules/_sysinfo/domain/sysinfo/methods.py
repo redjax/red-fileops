@@ -1,6 +1,8 @@
-from datetime import datetime
-import psutil
+from __future__ import annotations
 
+from datetime import datetime
+
+import psutil
 
 def get_last_boot() -> datetime:
     """Get the time of last system boot."""

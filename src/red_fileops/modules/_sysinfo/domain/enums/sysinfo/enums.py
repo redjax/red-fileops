@@ -1,10 +1,11 @@
+from __future__ import annotations
+
+from datetime import datetime
 from enum import Enum
+from typing import NamedTuple, Tuple
+
 import psutil
 from psutil._common import scpufreq
-
-from typing import NamedTuple, Tuple
-from datetime import datetime
-
 
 class EnumBasicSysInfo(Enum):
     LAST_BOOT: datetime = datetime.fromtimestamp(psutil.boot_time())

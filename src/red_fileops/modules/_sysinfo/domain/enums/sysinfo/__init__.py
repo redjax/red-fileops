@@ -1,3 +1,4 @@
-from . import enums
+from __future__ import annotations
 
-from .enums import EnumCPUCores, EnumBasicSysInfo
+from . import enums
+from .enums import EnumBasicSysInfo, EnumCPUCores

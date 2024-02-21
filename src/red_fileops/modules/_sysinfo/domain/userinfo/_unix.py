@@ -1,7 +1,8 @@
-import pwd
-import os
-import subprocess
+from __future__ import annotations
 
+import os
+import pwd
+import subprocess
 
 def get_uuid():
     try:

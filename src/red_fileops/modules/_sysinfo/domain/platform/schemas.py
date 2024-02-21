@@ -34,7 +34,6 @@ from .methods import (
     get_sys_byteorder,
 )
 
-
 def get_platform_uname() -> "PlatformUname":
     """Return an initalized PlatformUname instance."""
     _uname: PlatformUname = PlatformUname()

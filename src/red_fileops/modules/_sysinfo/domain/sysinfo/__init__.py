@@ -1,4 +1,5 @@
-from . import methods, schemas, utils
+from __future__ import annotations
 
-from .schemas import SystemInfo, CPUInfo, MemoryInfo
+from . import methods, schemas, utils
 from .methods import get_last_boot
+from .schemas import CPUInfo, MemoryInfo, SystemInfo

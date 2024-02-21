@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import ctypes
 import os
-
 
 def get_sid():
     user = os.getlogin()

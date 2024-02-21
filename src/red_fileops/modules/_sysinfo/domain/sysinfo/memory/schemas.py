@@ -1,11 +1,12 @@
-from typing import Any
-from datetime import datetime
-from dataclasses import dataclass, field
+from __future__ import annotations
 
-import psutil
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
 
 from red_fileops.modules._sysinfo.domain.mixins import DictMixin
 
+import psutil
 
 def ts_now() -> datetime:
     return datetime.now()
@@ -60,7 +61,8 @@ class VirtualMemory(DictMixin):
     def get(self) -> Any:
         """Return a platform-compatible version of svmem object.
 
-        smem object is a psutil platform-compatible virtual memory object."""
+        smem object is a psutil platform-compatible virtual memory object.
+        """
         if self.snapshot is None:
             self.snapshot = psutil.virtual_memory()
             self.refreshed = ts_now()
@@ -99,7 +101,8 @@ class SwapMemory(DictMixin):
     def get(self) -> Any:
         """Return a platform-compatible version of swap object.
 
-        smem object is a psutil platform-compatible virtual memory object."""
+        smem object is a psutil platform-compatible virtual memory object.
+        """
         if self.snapshot is None:
             self.snapshot = psutil.swap_memory()
             self.refreshed = ts_now()

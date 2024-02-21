@@ -1,15 +1,5 @@
 from __future__ import annotations
 
-from red_sysinfo.domain.enums.platform import (
-    EnumLinux,
-    EnumMac,
-    EnumPlatform,
-    EnumPython,
-    EnumUname,
-    EnumUnix,
-    EnumWin32,
-)
-
 from . import methods, schemas, utils
 from .methods import (
     get_python_base_prefix,
@@ -38,3 +28,13 @@ from .schemas import (
     PlatformWinInfo,
 )
 from .utils import print_platform
+
+from red_sysinfo.domain.enums.platform import (
+    EnumLinux,
+    EnumMac,
+    EnumPlatform,
+    EnumPython,
+    EnumUname,
+    EnumUnix,
+    EnumWin32,
+)

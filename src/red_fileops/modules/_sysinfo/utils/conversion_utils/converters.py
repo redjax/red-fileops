@@ -1,7 +1,8 @@
-from typing import Union
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
+from typing import Union
 
 valid_units: list[str] = ["B", "KB", "MB", "GB", "TB", "PB"]
 
@@ -30,9 +31,10 @@ def convert_bytes(
     bytes (int): Input bytes to convert up to proper unit.
 
     Example:
-    --------
+    -------
         1253656 => '1.20MB'
         1253656678 => '1.17GB'
+    
     """
     if as_obj and as_str:
         raise ValueError(
