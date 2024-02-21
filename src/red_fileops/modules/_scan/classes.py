@@ -55,17 +55,28 @@ class ScanEntity(BaseModel):
     @computed_field
     @property
     def created_at(self) -> str:
-        _ctime: float = Path(self.path).stat().st_ctime
-        ts: pendulum.DateTime = pendulum.from_timestamp(_ctime).to_iso8601_string()
+        try:
+            _ctime: float = Path(self.path).stat(follow_symlinks=False).st_ctime
+            ts: pendulum.DateTime = pendulum.from_timestamp(_ctime).to_iso8601_string()
+        except Exception as exc:
+            msg = Exception(f"Unhandled exception getting created_at time for path '{self.path}'. Setting to 0")
+            # print(f"[WARNING] {msg}")
+            
+            ts = 0
 
         return ts
 
     @computed_field
     @property
     def modified_at(self) -> str:
-        _mtime: float = Path(self.path).stat().st_mtime
-
-        ts: pendulum.DateTime = pendulum.from_timestamp(_mtime).to_iso8601_string()
+        try:
+            _mtime: float = Path(self.path).stat(follow_symlinks=False).st_mtime
+            ts: pendulum.DateTime = pendulum.from_timestamp(_mtime).to_iso8601_string()
+        except Exception as exc:
+            msg = Exception(f"Unhandled exception getting modified_at time for path '{self.path}'. Setting to 0")
+            # print(f"[WARNING] {msg}")
+            
+            ts = 0
 
         return ts
 
@@ -246,16 +257,47 @@ class ScanTarget(BaseModel):
         """
         return_dirs: list[t.Union[str, os.DirEntry]] = []
         _dirs: list[ScanEntity] = []
-
-        for entry in os.scandir(self.path):
-            if entry.is_dir():
-                _dirs.append(ScanEntity(path=entry.path))
-                if as_str:
-                    return_dirs.append(entry.path)
+        
+        def scandir_recursive(directory):
+            for entry in os.scandir(directory):
+                if entry.is_dir():
+                    yield from scandir_recursive(entry.path)
+                else:
+                    yield entry
+        
+        def scan_recursive(directory):
+            for entry in os.scandir(directory):
+                if entry.is_dir():
+                    _dirs.append(ScanEntity(path=entry.path))
+                    if as_str:
+                        if entry.path not in return_dirs:
+                            return_dirs.append(entry.path)
+                    else:
+                        if entry not in return_dirs:
+                            return_dirs.append(entry)
+                    scan_recursive(entry.path)
                 else:
                     return_dirs.append(entry)
 
+        for i in scandir_recursive(self.path):
+            _entity: ScanEntity = ScanEntity(path=i.path)
+            _dirs.append(_entity)
+            
+        print(f"get_dirs(): [{len(_dirs)}]")
         return _dirs
+    
+        # return_dirs: list[t.Union[str, os.DirEntry]] = []
+        # _dirs: list[ScanEntity] = []
+
+        # for entry in os.scandir(self.path):
+        #     if entry.is_dir():
+        #         _dirs.append(ScanEntity(path=entry.path))
+        #         if as_str:
+        #             return_dirs.append(entry.path)
+        #         else:
+        #             return_dirs.append(entry)
+
+        # return _dirs
 
     def run_scan(self, as_str: bool = False) -> ScanResults:
         """Return a list of path strings found in self.path.

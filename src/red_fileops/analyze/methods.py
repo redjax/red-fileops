@@ -39,5 +39,7 @@ def analyze_scan_results(scanner_obj: Scanner = None):
         return None
 
     print(f"Entity DF shape: {entities_df.shape[0]}")
-    print(entities_df.head(5))
+    print(entities_df.head(15))
+    
+    print(f"Columns: {entities_df.columns}")
     
