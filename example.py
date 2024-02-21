@@ -14,8 +14,13 @@ if __name__ == "__main__":
     #     print(f"Scan result entity: {entity}")
     #     print(f"Created at: {entity.created_at}")
 
-    SCANNER: Scanner = Scanner(path="D:/Data/Downloads")
+    SCANNER: Scanner = Scanner(path="/home/jack/Downloads")
     SCANNER.scan()
+
+    if not SCANNER.scan_results:
+        print(f"Scan results empty. Exiting.")
+        
+        exit(1)
 
     print(
         f"Scanner counts: [{SCANNER.scan_results.count_dirs}] dir(s) / [{SCANNER.scan_results.count_files}] file(s)"

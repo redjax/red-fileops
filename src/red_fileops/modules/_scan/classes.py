@@ -209,6 +209,12 @@ class ScanTarget(BaseModel):
         """
         return_files: list[t.Union[os.DirEntry, str]] = []
         _files: list[ScanEntity] = []
+        
+        if not self.exists:
+            msg = FileNotFoundError(f"Could not find path '{self.path}'")
+            print(f"[WARNING] {msg}")
+            
+            return None
 
         for entry in os.scandir(self.path):
             if entry.is_file():
@@ -262,8 +268,31 @@ class ScanTarget(BaseModel):
             list[str]: (default) If `as_str = False`
 
         """
-        files: list[t.Union[str, os.DirEntry]] = self.get_files(as_str=as_str)
-        dirs: list[t.Union[str, os.DirEntry]] = self.get_dirs(as_str=as_str)
+        if not self.exists:
+            msg = FileNotFoundError(f"Unable to find scan path: '{self.path}'")
+            
+            return None
+        
+        try:
+            files: list[t.Union[str, os.DirEntry]] = self.get_files(as_str=as_str)
+        except FileNotFoundError as fnf:
+            msg = FileNotFoundError(f"Unable to find scan path: '{self.path}'")
+            
+            raise msg
+        except Exception as exc:
+            msg = Exception(f"Unhandled exception scanning for files. Details: {exc}")
+            
+            raise msg
+        try:
+            dirs: list[t.Union[str, os.DirEntry]] = self.get_dirs(as_str=as_str)
+        except FileNotFoundError as fnf:
+            msg = FileNotFoundError(f"Unable to find scan path: '{self.path}'")
+            
+            raise msg
+        except Exception as exc:
+            msg = Exception(f"Unhandled exception scanning for dirs. Details: {exc}")
+            
+            raise msg
 
         _results: ScanResults = ScanResults(
             scan_target=self.path, files=files, dirs=dirs
@@ -328,7 +357,7 @@ class Scanner(BaseModel):
             return total
 
     def set_scan_timestamp(self) -> None:
-        """Called by other class methods to set the value of self.scan_timestamp."""
+        """Setter for self.scan_timestamp."""
         if self.scan_timestamp is None:
             _scan_ts: pendulum.DateTime = pendulum.now().to_iso8601_string()
 
@@ -343,9 +372,26 @@ class Scanner(BaseModel):
         output_file: t.Union[str, Path] | None = None,
     ) -> ScanResults:
         self.target: ScanTarget = ScanTarget(path=self.path)
+        
+        if not self.target.exists:
+            msg = FileNotFoundError(f"Unable to find scan path: {self.target.path}'")
+            
+            print(f"[WARNING] {msg}")
+            
+            return None
 
         self.set_scan_timestamp()
-        self.scan_results: ScanResults = self.target.run_scan(as_str=as_str)
+
+        try:
+            self.scan_results: ScanResults = self.target.run_scan(as_str=as_str)
+        except FileNotFoundError as fnf:
+            msg = FileNotFoundError(f"Unable to find scan path '{self.target.path}'")
+            
+            print(f"[ERROR] {msg}")
+        except Exception as exc:
+            msg = Exception(f"Unhandled exception scanning path '{self.target.path}'")
+            print(f"[ERROR] {msg}")
+            
         self.scan_results.scan_timestamp = self.scan_timestamp
 
         if save_results:
