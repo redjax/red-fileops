@@ -308,7 +308,7 @@ class Scanner(BaseModel):
         arbitrary_types_allowed=True,
     )
 
-    path: t.Union[str, Path] = Field(default=None)
+    scan_path: t.Union[str, Path] = Field(default=None)
     target: ScanTarget = Field(default=None)
     scan_results: ScanResults = Field(default=None)
     scan_timestamp: str | None = Field(
@@ -316,7 +316,7 @@ class Scanner(BaseModel):
         description="Time of scan. This value is None until a scan is run.",
     )
 
-    @field_validator("path")
+    @field_validator("scan_path")
     def validate_path(cls, v) -> Path:
         assert v is not None, ValueError("@ScanTarget: path cannot be None")
         assert isinstance(v, str) or isinstance(v, Path), TypeError(
@@ -340,7 +340,7 @@ class Scanner(BaseModel):
 
     @property
     def count_objs(self) -> int:
-        if not self.path.exists():
+        if not self.scan_path.exists():
             return None
         else:
             if self.scan_results.files is None:
@@ -372,7 +372,7 @@ class Scanner(BaseModel):
         save_results: bool = False,
         output_file: t.Union[str, Path] | None = None,
     ) -> ScanResults:
-        self.target: ScanTarget = ScanTarget(path=self.path)
+        self.target: ScanTarget = ScanTarget(path=self.scan_path)
 
         if not self.target.exists:
             msg = FileNotFoundError(f"Unable to find scan path: {self.target.path}'")
